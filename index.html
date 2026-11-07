@@ -3,139 +3,303 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 Realtime Dashboard</title>
-    <!-- Chart.js สำหรับวาดกราฟ -->
+    <title>ESP32 IoT Dashboard - Dark Mode</title>
+    <!-- Google Fonts & Chart.js -->
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; color: #334155; margin: 0; padding: 30px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-        .header h1 { margin: 0; font-size: 24px; color: #1e293b; }
-        .header p { margin: 5px 0 0; font-size: 14px; color: #64748b; }
-        .status { background-color: #dcfce7; color: #166534; padding: 6px 14px; border-radius: 20px; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; }
-        .status-dot { width: 8px; height: 8px; background-color: #22c55e; border-radius: 50%; }
-        
-        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 25px; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .card-title { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
-        .card-value { font-size: 28px; font-weight: 600; color: #0f172a; margin-top: 15px; }
-        
-        .chart-box { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 25px; }
-        .chart-header { display: flex; justify-content: space-between; font-weight: 600; font-size: 16px; margin-bottom: 15px; color: #1e293b; }
-        canvas { width: 100% !important; max-height: 250px; }
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-temp: #ff4757;
+            --accent-hum: #2ed573;
+            --accent-light: #ffa502;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+        }
+
+        body {
+            font-family: 'Kanit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 24px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            background: linear-gradient(90deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            margin: 4px 0 0;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .status-badge {
+            background-color: rgba(46, 213, 115, 0.1);
+            border: 1px solid rgba(46, 213, 115, 0.3);
+            color: var(--accent-hum);
+            padding: 6px 14px;
+            border-radius: 9999px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-hum);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-hum);
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 400;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .card-value {
+            font-size: 32px;
+            font-weight: 600;
+        }
+
+        .temp-color { color: var(--accent-temp); }
+        .hum-color { color: var(--accent-hum); }
+        .light-color { color: var(--accent-light); }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+
+        .chart-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        canvas {
+            width: 100% !important;
+            max-height: 240px;
+        }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <div>
-            <h1>ESP32 Realtime Dashboard</h1>
-            <p>Firebase Realtime Database · esp32-01</p>
+    <div class="container">
+        <!-- Header Section -->
+        <div class="header">
+            <div>
+                <h1>ESP32 REALTIME DASHBOARD</h1>
+                <p>Firebase Realtime Database · Node: esp32-01</p>
+            </div>
+            <div class="status-badge">
+                <div class="pulse-dot"></div> Connected
+            </div>
         </div>
-        <div class="status">
-            <div class="status-dot"></div> Connected
-        </div>
-    </div>
 
-    <!-- การ์ดแสดงค่าตัวเลขปัจจุบัน -->
-    <div class="cards">
-        <div class="card">
-            <div class="card-title">TEMPERATURE</div>
-            <div class="card-value" id="val-temp">-- °C</div>
-        </div>
-        <div class="card">
-            <div class="card-title">HUMIDITY</div>
-            <div class="card-value" id="val-hum">-- %</div>
-        </div>
-        <div class="card">
-            <div class="card-title">LIGHT</div>
-            <div class="card-value" id="val-light">-- lx</div>
-        </div>
-    </div>
+        <!-- Metric Cards -->
+        <div class="cards-grid">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Temperature</span>
+                    <span class="temp-color">🌡️</span>
+                </div>
+                <div class="card-value temp-color" id="val-temp">-- °C</div>
+            </div>
 
-    <!-- กราฟอุณหภูมิ -->
-    <div class="chart-box">
-        <div class="chart-header">
-            <span>Temperature</span>
-            <span style="color: #94a3b8; font-size: 14px;">°C</span>
-        </div>
-        <canvas id="tempChart"></canvas>
-    </div>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Humidity</span>
+                    <span class="hum-color">💧</span>
+                </div>
+                <div class="card-value hum-color" id="val-hum">-- %</div>
+            </div>
 
-    <!-- กราฟความชื้น -->
-    <div class="chart-box">
-        <div class="chart-header">
-            <span>Humidity</span>
-            <span style="color: #94a3b8; font-size: 14px;">%</span>
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Light Level</span>
+                    <span class="light-color">☀️</span>
+                </div>
+                <div class="card-value light-color" id="val-light">-- lx</div>
+            </div>
         </div>
-        <canvas id="humChart"></canvas>
+
+        <!-- Realtime Charts -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <div class="chart-title">📈 Temperature Trend (°C)</div>
+                <canvas id="tempChart"></canvas>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-title">📊 Humidity Trend (%)</div>
+                <canvas id="humChart"></canvas>
+            </div>
+        </div>
     </div>
 
     <script>
-        "https://YOUR_FIREBASE_URL/esp32-01.json"
-       const dbUrl = "https://test1-bc558-default-rtdb.asia-southeast1.firebasedatabase.app/esp32-01.json";
+        // URL Firebase Realtime Database ของคุณ
+        const dbUrl = "https://test1-bc558-default-rtdb.asia-southeast1.firebasedatabase.app/esp32-01.json";
 
-        const maxPoints = 20; // จำนวนจุดสูงสุดบนกราฟ
-        const times = [], temps = [], hums = [];
+        const maxDataPoints = 15;
+        const timeLabels = [], tempHistory = [], humHistory = [];
 
-        // ตั้งค่ากราฟ Chart.js
-        const createChartConfig = (label, color, fillBg) => ({
-            type: 'line',
-            data: {
-                labels: times,
-                datasets: [{
-                    label: label,
-                    data: label === 'Temperature' ? temps : hums,
-                    borderColor: color,
-                    backgroundColor: fillBg,
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: 3
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { grid: { display: false } },
-                    y: { grid: { color: '#f1f5f9' } }
+        // กำหนดการตั้งค่าสไตล์กราฟในโหมดมืด
+        const chartOptions = {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#94a3b8' }
+                },
+                y: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#94a3b8' }
                 }
             }
+        };
+
+        // สร้างกราฟอุณหภูมิ (สีแดงนีออน)
+        const tempChart = new Chart(document.getElementById('tempChart'), {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    data: tempHistory,
+                    borderColor: '#ff4757',
+                    backgroundColor: 'rgba(255, 71, 87, 0.15)',
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#ff4757'
+                }]
+            },
+            options: chartOptions
         });
 
-        const tempChart = new Chart(document.getElementById('tempChart'), createChartConfig('Temperature', '#ef4444', 'rgba(239, 68, 68, 0.1)'));
-        const humChart = new Chart(document.getElementById('humChart'), createChartConfig('Humidity', '#3b82f6', 'rgba(59, 130, 246, 0.1)'));
+        // สร้างกราฟความชื้น (สีเขียวนีออน)
+        const humChart = new Chart(document.getElementById('humChart'), {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [{
+                    data: humHistory,
+                    borderColor: '#2ed573',
+                    backgroundColor: 'rgba(46, 213, 115, 0.15)',
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#2ed573'
+                }]
+            },
+            options: chartOptions
+        });
 
-        // ฟังก์ชันดึงข้อมูลแบบ Real-time
-        function updateData() {
+        // ดึงข้อมูล Realtime ทุก 3 วินาที
+        function fetchFirebaseData() {
             fetch(dbUrl)
-                .then(res => res.json())
+                .then(response => response.json())
                 .then(data => {
                     if (data) {
-                        const now = new Date().toLocaleTimeString();
-                        
-                        // อัปเดตตัวเลขในการ์ด
+                        const timeNow = new Date().toLocaleTimeString();
+
+                        // อัปเดตการ์ดแสดงผล
                         document.getElementById('val-temp').innerText = (data.temp || 0).toFixed(2) + " °C";
                         document.getElementById('val-hum').innerText = (data.humidity || 0).toFixed(2) + " %";
                         document.getElementById('val-light').innerText = (data.light || 0).toFixed(2) + " lx";
 
-                        // เพิ่มข้อมูลเข้าในกราฟ
-                        if (times.length >= maxPoints) {
-                            times.shift(); temps.shift(); hums.shift();
+                        // จัดการคิวข้อมูลกราฟ
+                        if (timeLabels.length >= maxDataPoints) {
+                            timeLabels.shift();
+                            tempHistory.shift();
+                            humHistory.shift();
                         }
-                        times.push(now);
-                        temps.push(data.temp);
-                        hums.push(data.humidity);
+                        timeLabels.push(timeNow);
+                        tempHistory.push(data.temp);
+                        humHistory.push(data.humidity);
 
                         tempChart.update();
                         humChart.update();
                     }
                 })
-                .catch(err => console.error(err));
+                .catch(err => console.error("Data Fetch Error:", err));
         }
 
-        // ดึงข้อมูลใหม่ทุกๆ 3 วินาที
-        setInterval(updateData, 3000);
-        updateData();
+        setInterval(fetchFirebaseData, 3000);
+        fetchFirebaseData();
     </script>
 </body>
 </html>
